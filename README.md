@@ -13,7 +13,7 @@ Chess in a Discord channel, drawn with custom pixel art. Runs as a Vercel functi
 1. Put the sprite sheet at `assets/chess.png` (32px tiles: white pieces, black pieces, frame, squares).
 2. Create a Discord app at https://discord.com/developers/applications.
 3. Create a Neon database and run `schema.sql` in its SQL editor.
-4. Deploy to Vercel with `DATABASE_URL` and `DISCORD_PUBLIC_KEY` set.
+4. Deploy to Vercel with `DATABASE_URL` and `DISCORD_PUBLIC_KEY` set. Set `SHOW_BOARD_FRAME=true` to draw the frame from the sprite sheet around the board.
 5. Set the app's Interactions Endpoint URL to `https://<your-app>.vercel.app/api/interactions`.
 6. Add `DISCORD_APP_ID` and `DISCORD_TOKEN` to `.env.local`, then run `pnpm register`.
 7. Invite the bot with the `applications.commands` scope.
