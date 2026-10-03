@@ -69,7 +69,7 @@ export async function findRecords(guildId: string): Promise<PlayerRecord[]> {
       count(*) filter (where winner_id <> player_id)::int as losses,
       count(*) filter (where status = 'drawn')::int as ties
     from games cross join lateral (values (white_id), (black_id)) as players (player_id)
-    where guild_id = ${guildId} and status <> 'active'
+    where guild_id = ${guildId} and status <> 'active' and white_id <> black_id
     group by player_id
     order by wins desc`
   return recordSchema.array().parse(rows)

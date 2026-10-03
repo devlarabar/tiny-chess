@@ -43,7 +43,6 @@ export async function move(interaction: CommandInteraction): Promise<Reply> {
 export async function newgame(interaction: CommandInteraction): Promise<Reply> {
   const userId = interaction.member.user.id
   const { opponent } = newGameOptionsSchema.parse(interaction.data.options)
-  if (opponent === userId) return fail("You can't play yourself. Pick someone else.")
   const game = await findActiveGame(interaction.channel_id)
   if (game && !isPlayer(game, userId)) {
     return fail(`${mention(game.whiteId)} and ${mention(game.blackId)} are mid-game here. Try another channel.`)

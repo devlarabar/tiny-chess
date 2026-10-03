@@ -3,7 +3,7 @@ create table games (
   guild_id text not null,
   channel_id text not null,
   white_id text not null,
-  black_id text not null check (black_id <> white_id),
+  black_id text not null,
   pgn text not null,
   status text not null default 'active' check (status in ('active', 'won', 'drawn')),
   winner_id text check ((status = 'won') = (winner_id is not null)),
