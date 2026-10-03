@@ -1,0 +1,26 @@
+{
+  "name": "tiny-chess",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "register": "node --env-file=.env.local scripts/register-commands.ts"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
+    "@vercel/functions": "^3.9.9",
+    "chess.js": "^1.4.0",
+    "discord-interactions": "^4.4.0",
+    "sharp": "^0.35.5",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}
