@@ -10,7 +10,7 @@ const PIECE_NAMES: Record<PieceSymbol, string> = {
   k: 'King',
 }
 
-const MAX_CHOICES = 25
+const MAX_CHOICES = 5
 
 export type MoveResult = { move: Move } | { error: string }
 

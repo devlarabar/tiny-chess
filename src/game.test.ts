@@ -45,8 +45,8 @@ describe('playMove', () => {
 })
 
 describe('suggestOrigins', () => {
-  it('lists each piece that can move, once', () => {
-    expect(suggestOrigins(new Chess(), '')).toHaveLength(10)
+  it('shows at most 5 pieces', () => {
+    expect(suggestOrigins(new Chess(), '')).toHaveLength(5)
   })
 
   it('filters by piece name or square', () => {
@@ -63,8 +63,8 @@ describe('suggestOrigins', () => {
 })
 
 describe('suggestDestinations', () => {
-  it('lists every legal destination when no piece is chosen yet', () => {
-    expect(suggestDestinations(new Chess(), '', '')).toHaveLength(20)
+  it('shows at most 5 destinations when no piece is chosen yet', () => {
+    expect(suggestDestinations(new Chess(), '', '')).toHaveLength(5)
   })
 
   it('lists destinations for the chosen square and names captures', () => {
