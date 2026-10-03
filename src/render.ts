@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Chess, PieceSymbol } from 'chess.js'
-import sharp from 'sharp'
+import sharp, { type OverlayOptions } from 'sharp'
+import { env } from './env.js'
 import { SQUARE_LABELS } from './labels.js'
 
 const SHEET_PATH = join(process.cwd(), 'assets', 'chess.png')
@@ -14,41 +15,38 @@ const HOLE_END_LEFT_PX = HOLE_LEFT_PX + SQUARE_PX
 const HOLE_END_TOP_PX = HOLE_TOP_PX + SQUARE_PX
 const FRAME_SIDE_PX = 14
 const FRAME_BOTTOM_PX = 19
-const BOARD_END_PX = FRAME_SIDE_PX + BOARD_PX
-const IMAGE_WIDTH_PX = BOARD_END_PX + FRAME_SIDE_PX
-const IMAGE_HEIGHT_PX = BOARD_END_PX + FRAME_BOTTOM_PX
+const BOARD_OFFSET_PX = env.SHOW_BOARD_FRAME ? FRAME_SIDE_PX : 0
+const BOARD_END_PX = BOARD_OFFSET_PX + BOARD_PX
+const IMAGE_WIDTH_PX = BOARD_END_PX + BOARD_OFFSET_PX
+const IMAGE_HEIGHT_PX = BOARD_END_PX + (env.SHOW_BOARD_FRAME ? FRAME_BOTTOM_PX : 0)
 const SCALE = 2
 
 type Position = { left: number; top: number }
 
 function position(index: number): Position {
   return {
-    left: FRAME_SIDE_PX + (index % 8) * SQUARE_PX,
-    top: FRAME_SIDE_PX + Math.floor(index / 8) * SQUARE_PX,
+    left: BOARD_OFFSET_PX + (index % 8) * SQUARE_PX,
+    top: BOARD_OFFSET_PX + Math.floor(index / 8) * SQUARE_PX,
   }
 }
 
-export async function renderBoard(chess: Chess): Promise<Buffer> {
-  const sheet = await readFile(SHEET_PATH)
-  const crop = (left: number, top: number, width: number, height: number) =>
-    sharp(sheet).extract({ left, top, width, height }).toBuffer()
+function crop(sheet: Buffer, left: number, top: number, width: number, height: number): Promise<Buffer> {
+  return sharp(sheet).extract({ left, top, width, height }).toBuffer()
+}
 
-  const [lightSquare, darkSquare, topLeft, topRight, bottomLeft, bottomRight, topEdge, bottomEdge, leftEdge, rightEdge] =
-    await Promise.all([
-      crop(SQUARE_PX * 4, SQUARE_PX * 3, SQUARE_PX, SQUARE_PX),
-      crop(SQUARE_PX * 3, SQUARE_PX * 3, SQUARE_PX, SQUARE_PX),
-      crop(HOLE_LEFT_PX - FRAME_SIDE_PX, HOLE_TOP_PX - FRAME_SIDE_PX, FRAME_SIDE_PX, FRAME_SIDE_PX),
-      crop(HOLE_END_LEFT_PX, HOLE_TOP_PX - FRAME_SIDE_PX, FRAME_SIDE_PX, FRAME_SIDE_PX),
-      crop(HOLE_LEFT_PX - FRAME_SIDE_PX, HOLE_END_TOP_PX, FRAME_SIDE_PX, FRAME_BOTTOM_PX),
-      crop(HOLE_END_LEFT_PX, HOLE_END_TOP_PX, FRAME_SIDE_PX, FRAME_BOTTOM_PX),
-      crop(HOLE_LEFT_PX, HOLE_TOP_PX - FRAME_SIDE_PX, SQUARE_PX, FRAME_SIDE_PX),
-      crop(HOLE_LEFT_PX, HOLE_END_TOP_PX, SQUARE_PX, FRAME_BOTTOM_PX),
-      crop(HOLE_LEFT_PX - FRAME_SIDE_PX, HOLE_TOP_PX, FRAME_SIDE_PX, SQUARE_PX),
-      crop(HOLE_END_LEFT_PX, HOLE_TOP_PX, FRAME_SIDE_PX, SQUARE_PX),
-    ])
-
+async function frameOverlays(sheet: Buffer): Promise<OverlayOptions[]> {
+  const [topLeft, topRight, bottomLeft, bottomRight, topEdge, bottomEdge, leftEdge, rightEdge] = await Promise.all([
+    crop(sheet, HOLE_LEFT_PX - FRAME_SIDE_PX, HOLE_TOP_PX - FRAME_SIDE_PX, FRAME_SIDE_PX, FRAME_SIDE_PX),
+    crop(sheet, HOLE_END_LEFT_PX, HOLE_TOP_PX - FRAME_SIDE_PX, FRAME_SIDE_PX, FRAME_SIDE_PX),
+    crop(sheet, HOLE_LEFT_PX - FRAME_SIDE_PX, HOLE_END_TOP_PX, FRAME_SIDE_PX, FRAME_BOTTOM_PX),
+    crop(sheet, HOLE_END_LEFT_PX, HOLE_END_TOP_PX, FRAME_SIDE_PX, FRAME_BOTTOM_PX),
+    crop(sheet, HOLE_LEFT_PX, HOLE_TOP_PX - FRAME_SIDE_PX, SQUARE_PX, FRAME_SIDE_PX),
+    crop(sheet, HOLE_LEFT_PX, HOLE_END_TOP_PX, SQUARE_PX, FRAME_BOTTOM_PX),
+    crop(sheet, HOLE_LEFT_PX - FRAME_SIDE_PX, HOLE_TOP_PX, FRAME_SIDE_PX, SQUARE_PX),
+    crop(sheet, HOLE_END_LEFT_PX, HOLE_TOP_PX, FRAME_SIDE_PX, SQUARE_PX),
+  ])
   const edgeOffsets = Array.from({ length: 8 }, (_, index) => FRAME_SIDE_PX + index * SQUARE_PX)
-  const frame = [
+  return [
     { input: topLeft, left: 0, top: 0 },
     { input: topRight, left: BOARD_END_PX, top: 0 },
     { input: bottomLeft, left: 0, top: BOARD_END_PX },
@@ -60,6 +58,15 @@ export async function renderBoard(chess: Chess): Promise<Buffer> {
       { input: rightEdge, left: BOARD_END_PX, top: offset },
     ]),
   ]
+}
+
+export async function renderBoard(chess: Chess): Promise<Buffer> {
+  const sheet = await readFile(SHEET_PATH)
+  const [lightSquare, darkSquare, frame] = await Promise.all([
+    crop(sheet, SQUARE_PX * 4, SQUARE_PX * 3, SQUARE_PX, SQUARE_PX),
+    crop(sheet, SQUARE_PX * 3, SQUARE_PX * 3, SQUARE_PX, SQUARE_PX),
+    env.SHOW_BOARD_FRAME ? frameOverlays(sheet) : [],
+  ])
 
   const cells = chess.board().flat()
   const squares = cells.map((_, index) => ({
@@ -69,7 +76,8 @@ export async function renderBoard(chess: Chess): Promise<Buffer> {
   const pieces = await Promise.all(
     cells.flatMap((piece, index) => {
       if (!piece) return []
-      const sprite = crop(SHEET_COLUMNS.indexOf(piece.type) * SQUARE_PX, piece.color === 'w' ? 0 : SQUARE_PX, SQUARE_PX, SQUARE_PX)
+      const column = SHEET_COLUMNS.indexOf(piece.type)
+      const sprite = crop(sheet, column * SQUARE_PX, piece.color === 'w' ? 0 : SQUARE_PX, SQUARE_PX, SQUARE_PX)
       return [sprite.then((input) => ({ input, ...position(index) }))]
     }),
   )
