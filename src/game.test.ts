@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js'
 import { describe, expect, it } from 'vitest'
-import { describeMove, outcome, playMove } from './game.js'
+import { describeMove, outcome, playMove, suggestDestinations, suggestOrigins } from './game.js'
 
 describe('playMove', () => {
   it('moves the only piece of a type that can reach the square', () => {
@@ -41,6 +41,52 @@ describe('playMove', () => {
     const chess = new Chess('k7/4P3/8/8/8/8/8/7K w - - 0 1')
     playMove(chess, 'e7', 'e8', 'n')
     expect(chess.get('e8')).toEqual({ type: 'n', color: 'w' })
+  })
+})
+
+describe('suggestOrigins', () => {
+  it('lists each piece that can move, once', () => {
+    expect(suggestOrigins(new Chess(), '')).toHaveLength(10)
+  })
+
+  it('filters by piece name or square', () => {
+    const knights = [
+      { name: 'Knight on B1', value: 'b1' },
+      { name: 'Knight on G1', value: 'g1' },
+    ]
+    expect(suggestOrigins(new Chess(), 'kn')).toEqual(knights)
+    expect(suggestOrigins(new Chess(), 'g')).toEqual([
+      { name: 'Pawn on G2', value: 'g2' },
+      { name: 'Knight on G1', value: 'g1' },
+    ])
+  })
+})
+
+describe('suggestDestinations', () => {
+  it('lists every legal destination when no piece is chosen yet', () => {
+    expect(suggestDestinations(new Chess(), '', '')).toHaveLength(20)
+  })
+
+  it('lists destinations for the chosen square and names captures', () => {
+    const chess = new Chess()
+    chess.move('e4')
+    chess.move('d5')
+    expect(suggestDestinations(chess, 'e4', '')).toEqual([
+      { name: 'E5 (Pawn from E4)', value: 'e5' },
+      { name: 'D5 (Pawn from E4, takes Pawn)', value: 'd5' },
+    ])
+  })
+
+  it('filters by what was typed', () => {
+    expect(suggestDestinations(new Chess(), 'pawn', 'e')).toEqual([
+      { name: 'E3 (Pawn from E2)', value: 'e3' },
+      { name: 'E4 (Pawn from E2)', value: 'e4' },
+    ])
+  })
+
+  it('lists a promotion square once', () => {
+    const chess = new Chess('k7/4P3/8/8/8/8/8/7K w - - 0 1')
+    expect(suggestDestinations(chess, 'e7', '')).toEqual([{ name: 'E8 (Pawn from E7)', value: 'e8' }])
   })
 })
 
