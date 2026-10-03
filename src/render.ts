@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Chess, PieceSymbol } from 'chess.js'
 import sharp from 'sharp'
+import { SQUARE_LABELS } from './labels.js'
 
 const SHEET_PATH = join(process.cwd(), 'assets', 'chess.png')
 const SHEET_COLUMNS: PieceSymbol[] = ['r', 'n', 'b', 'q', 'k', 'p']
@@ -73,10 +74,15 @@ export async function renderBoard(chess: Chess): Promise<Buffer> {
     }),
   )
 
+  const labels = SQUARE_LABELS.map((label, index) => {
+    const { left, top } = position(index)
+    return { ...label, left: left + SQUARE_PX - label.raw.width, top: top + SQUARE_PX - label.raw.height }
+  })
+
   const board = await sharp({
     create: { width: IMAGE_WIDTH_PX, height: IMAGE_HEIGHT_PX, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   })
-    .composite([...frame, ...squares, ...pieces])
+    .composite([...frame, ...squares, ...pieces, ...labels])
     .png()
     .toBuffer()
   return sharp(board)
