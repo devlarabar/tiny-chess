@@ -1,5 +1,5 @@
 import type { Chess, Move, PieceSymbol } from 'chess.js'
-import { mention } from './discord.js'
+import { type Choice, mention } from './discord.js'
 
 const PIECE_NAMES: Record<PieceSymbol, string> = {
   p: 'Pawn',
@@ -10,15 +10,49 @@ const PIECE_NAMES: Record<PieceSymbol, string> = {
   k: 'King',
 }
 
+const MAX_CHOICES = 25
+
 export type MoveResult = { move: Move } | { error: string }
 
 export type Outcome = { status: 'active' | 'won' | 'drawn'; winnerId: string | null }
+
+function isFrom(move: Move, from: string): boolean {
+  return move.from === from || PIECE_NAMES[move.piece].toLowerCase() === from
+}
+
+function matching(choices: Choice[], typed: string): Choice[] {
+  return [...new Map(choices.map((choice) => [choice.name, choice])).values()]
+    .filter(({ name, value }) => value.startsWith(typed) || name.toLowerCase().startsWith(typed))
+    .slice(0, MAX_CHOICES)
+}
+
+export function suggestOrigins(chess: Chess, typed: string): Choice[] {
+  const choices = chess.moves({ verbose: true }).map((move) => ({
+    name: `${PIECE_NAMES[move.piece]} on ${move.from.toUpperCase()}`,
+    value: move.from,
+  }))
+  return matching(choices, typed)
+}
+
+export function suggestDestinations(chess: Chess, from: string, typed: string): Choice[] {
+  const choices = chess
+    .moves({ verbose: true })
+    .filter((move) => !from || isFrom(move, from))
+    .map((move) => {
+      const capture = move.captured ? `, takes ${PIECE_NAMES[move.captured]}` : ''
+      return {
+        name: `${move.to.toUpperCase()} (${PIECE_NAMES[move.piece]} from ${move.from.toUpperCase()}${capture})`,
+        value: move.to,
+      }
+    })
+  return matching(choices, typed)
+}
 
 export function playMove(chess: Chess, from: string, to: string, promotion: PieceSymbol): MoveResult {
   const origins = new Set(
     chess
       .moves({ verbose: true })
-      .filter((move) => move.to === to && (move.from === from || PIECE_NAMES[move.piece].toLowerCase() === from))
+      .filter((move) => move.to === to && isFrom(move, from))
       .map((move) => move.from),
   )
   const [origin, ...others] = origins

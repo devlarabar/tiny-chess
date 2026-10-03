@@ -1,7 +1,7 @@
 import { waitUntil } from '@vercel/functions'
 import type { Chess } from 'chess.js'
 import { InteractionResponseFlags, InteractionResponseType, InteractionType, verifyKey } from 'discord-interactions'
-import { chooseColor, move, newgame, scoreboard } from '../src/commands.js'
+import { chooseColor, move, newgame, scoreboard, suggestMoves } from '../src/commands.js'
 import { interactionSchema, type Reply } from '../src/discord.js'
 import { env } from '../src/env.js'
 import { renderBoard } from '../src/render.js'
@@ -38,6 +38,12 @@ export async function POST(request: Request): Promise<Response> {
 
   const interaction = interactionSchema.parse(JSON.parse(body))
   if (interaction.type === InteractionType.PING) return Response.json({ type: InteractionResponseType.PONG })
+  if (interaction.type === InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE) {
+    return Response.json({
+      type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+      data: { choices: await suggestMoves(interaction) },
+    })
+  }
 
   const reply =
     interaction.type === InteractionType.APPLICATION_COMMAND

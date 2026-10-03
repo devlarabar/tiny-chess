@@ -2,8 +2,15 @@ import { Chess } from 'chess.js'
 import { type Button, ButtonStyleTypes, MessageComponentTypes } from 'discord-interactions'
 import { z } from 'zod'
 import { findActiveGame, findRecords, type Game, saveMove, startGame } from './db.js'
-import { type ButtonInteraction, type CommandInteraction, mention, type Reply } from './discord.js'
-import { describeMove, outcome, playMove } from './game.js'
+import {
+  type AutocompleteInteraction,
+  type ButtonInteraction,
+  type Choice,
+  type CommandInteraction,
+  mention,
+  type Reply,
+} from './discord.js'
+import { describeMove, outcome, playMove, suggestDestinations, suggestOrigins } from './game.js'
 
 const moveOptionsSchema = z.object({
   from: z.string().trim().toLowerCase(),
@@ -18,18 +25,35 @@ function fail(content: string): Reply {
   return { content, ephemeral: true }
 }
 
+type Turn = { game: Game; chess: Chess } | { error: string }
+
 function isPlayer(game: Game, userId: string): boolean {
   return userId === game.whiteId || userId === game.blackId
 }
 
-export async function move(interaction: CommandInteraction): Promise<Reply> {
-  const userId = interaction.member.user.id
-  const game = await findActiveGame(interaction.channel_id)
-  if (!game) return fail('No game in this channel. Start one with /newgame.')
-  if (!isPlayer(game, userId)) return fail("You're not playing this game.")
+async function loadTurn(channelId: string, userId: string): Promise<Turn> {
+  const game = await findActiveGame(channelId)
+  if (!game) return { error: 'No game in this channel. Start one with /newgame.' }
+  if (!isPlayer(game, userId)) return { error: "You're not playing this game." }
   const chess = new Chess()
   chess.loadPgn(game.pgn)
-  if (userId !== (chess.turn() === 'w' ? game.whiteId : game.blackId)) return fail("It's not your turn.")
+  if (userId !== (chess.turn() === 'w' ? game.whiteId : game.blackId)) return { error: "It's not your turn." }
+  return { game, chess }
+}
+
+export async function suggestMoves(interaction: AutocompleteInteraction): Promise<Choice[]> {
+  const turn = await loadTurn(interaction.channel_id, interaction.member.user.id)
+  if ('error' in turn) return []
+  const { from = '', to = '' } = moveOptionsSchema.partial().parse(interaction.data.options)
+  if (interaction.data.focused === 'to') return suggestDestinations(turn.chess, from, to)
+  return suggestOrigins(turn.chess, from)
+}
+
+export async function move(interaction: CommandInteraction): Promise<Reply> {
+  const userId = interaction.member.user.id
+  const turn = await loadTurn(interaction.channel_id, userId)
+  if ('error' in turn) return fail(turn.error)
+  const { game, chess } = turn
   const { from, to, promote } = moveOptionsSchema.parse(interaction.data.options)
   const result = playMove(chess, from, to, promote)
   if ('error' in result) return fail(result.error)

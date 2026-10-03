@@ -14,8 +14,14 @@ const commands = [
     description: 'Move one of your pieces',
     contexts: GUILD_ONLY,
     options: [
-      { type: STRING, name: 'from', description: 'A square like e2, or a piece name like pawn', required: true },
-      { type: STRING, name: 'to', description: 'The square to move to, like e4', required: true },
+      {
+        type: STRING,
+        name: 'from',
+        description: 'A square like e2, or a piece name like pawn',
+        required: true,
+        autocomplete: true,
+      },
+      { type: STRING, name: 'to', description: 'The square to move to, like e4', required: true, autocomplete: true },
       {
         type: STRING,
         name: 'promote',
